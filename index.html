@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Compras Inteligente</title>
+  
+  <link rel="icon" type="image/png" href="Favicon.png">
+  <link rel="apple-touch-icon" href="Favicon.png">
+
+  <!-- SDKs do Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --bg: #e2e8f0; 
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+      --accent-green: #10b981;
+
+      --item-checked-bg: #1e293b;
+      --item-checked-text: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 40px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 16px;
+      padding: 12px 0 4px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    p.subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .mode-switcher {
+      display: flex;
+      gap: 8px;
+      background: #cbd5e1;
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn.active {
+      background: var(--card-bg);
+      color: var(--primary);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .reset-btn:hover {
+      background: #dc2626;
+    }
+
+    .category-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      border: 1px solid var(--border);
+    }
+
+    .category-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid var(--primary-light);
+      padding-bottom: 6px;
+    }
+
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background-color: #f8fafc;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .include-check {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    .bought-check {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent-green);
+      cursor: pointer;
+      margin-right: 8px;
+      display: none;
+    }
+
+    body.shopping-mode .bought-check {
+      display: inline-block;
+    }
+
+    .item.bought {
+      background-color: var(--item-checked-bg) !important;
+      border-color: var(--item-checked-bg) !important;
+    }
+
+    .item-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      flex-grow: 1;
+    }
+
+    .item-name {
+      transition: color 0.2s ease;
+      font-weight: 500;
+    }
+
+    .item.bought .item-name {
+      text-decoration: line-through;
+      color: var(--item-checked-text);
+    }
+
+    .qty-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .qty-control {
+      display: flex;
+      align-items: center;
+      background: var(--primary-light);
+      border-radius: 20px;
+      padding: 2px 4px;
+      gap: 4px;
+      border: 1px solid #bfdbfe;
+      transition: all 0.2s ease;
+    }
+
+    .qty-btn {
+      background: var(--card-bg);
+      border: none;
+      color: var(--primary);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: background 0.1s;
+    }
+
+    .qty-btn:active {
+      transform: scale(0.95);
+    }
+
+    .qty-value {
+      font-size: 0.85rem;
+      color: var(--primary);
+      min-width: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .qty-unit {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-width: 55px;
+      text-align: left;
+    }
+
+    .item.bought .qty-control {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .item.bought .qty-btn {
+      background: #1e293b;
+      color: var(--item-checked-text);
+    }
+
+    .item.bought .qty-value {
+      color: var(--item-checked-text);
+    }
+
+    .item.bought .qty-unit {
+      color: var(--item-checked-text);
+    }
+
+    /* REGRAS DO MODO COMPRAS */
+    body.shopping-mode .item {
+      display: none !important;
+    }
+
+    body.shopping-mode .item.needed {
+      display: flex !important;
+    }
+
+    body.shopping-mode .include-check {
+      display: none !important;
+    }
+
+    body.shopping-mode .category-card.hidden-card {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🛒 Lista de Compras</h1>
+    <p class="subtitle" id="sub-title">Selecione o que precisa de comprar</p>
+  </header>
+
+  <div class="mode-switcher">
+    <button class="mode-btn active" id="btn-plan" onclick="setMode('plan')">📝 Modo Planear</button>
+    <button class="mode-btn" id="btn-shop" onclick="setMode('shop')">🛒 Modo Compras</button>
+  </div>
+
+  <button class="reset-btn" onclick="resetAllData()">🔄 Repor Todas as Quantidades e Limpar Estado</button>
+
+  <!-- 📦 Mercearias -->
+  <div class="category-card">
+    <div class="category-title">📦 Mercearias</div>
+    <ul class="item-list">
+      <script>
+        const merceariasList = [
+          {id: 'acucar', name: 'Açúcar'},
+          {id: 'acucar-stevia', name: 'Açúcar Stevia'},
+          {id: 'arroz', name: 'Arroz'},
+          {id: 'massa-cotovelo', name: 'Massa (Cotovelo)'},
+          {id: 'massa-esparguete', name: 'Massa (Esparguete)'},
+          {id: 'massa-pen', name: 'Massa (Penne)'},
+          {id: 'farinha', name: 'Farinha'},
+          {id: 'grao-bico-lata', name: 'Grão-de-Bico (Lata)'},
+          {id: 'feijao-lata', name: 'Feijão (Lata)'},
+          {id: 'feijao-seco', name: 'Feijão (Seco)'},
+          {id: 'atum', name: 'Atum em Lata'},
+          {id: 'polpa-tomate', name: 'Polpa de Tomate'},
+          {id: 'lata-ananas', name: 'Lata de Ananás'},
+          {id: 'lata-pessego', name: 'Lata de Pêssego'},
+          {id: 'maionese', name: 'Maionese'},
+          {id: 'ketchup', name: 'Ketchup'},
+          {id: 'mostarda', name: 'Mostarda'},
+          {id: 'molhos-variados', name: 'Molhos Variados'},
+          {id: 'azeite', name: 'Azeite'},
+          {id: 'oleo', name: 'Óleo Alimentar'},
+          {id: 'vinagre', name: 'Vinagre'},
+          {id: 'sal-fino', name: 'Sal Fino'},
+          {id: 'sal-grosso', name: 'Sal Grosso'},
+          {id: 'gelatina', name: 'Gelatina'},
+          {id: 'cafe-delta', name: 'Cápsulas Café Delta'},
+          {id: 'cafe-dolce-gusto', name: 'Cápsulas Café Dolce Gusto'},
+          {id: 'cafe-soluvel', name: 'Café Solúvel'},
+          {id: 'capsulas-galao', name: 'Cápsulas Galão'},
+          {id: 'cereais', name: 'Cereais de Pequeno-Almoço'}
+        ];
+        
+        merceariasList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥜 Frutos Secos e Snacks -->
+  <div class="category-card">
+    <div class="category-title">🥜 Frutos Secos e Snacks</div>
+    <ul class="item-list">
+      <script>
+        const snacksList = [
+          {id: 'caju-torrado', name: 'Caju Torrado'},
+          {id: 'mix-frutos-secos', name: 'Mix de Frutos Secos'},
+          {id: 'amendoim', name: 'Amendoim'},
+          {id: 'nozes', name: 'Nozes'},
+          {id: 'amendoa-torrada', name: 'Amêndoa Torrada'},
+          {id: 'sementes-abobora', name: 'Sementes de Abóbora'},
+          {id: 'sementes-girassol', name: 'Sementes de Girassol'},
+          {id: 'sementes-linhaca', name: 'Sementes de Linhaça'},
+          {id: 'sementes-sesamo', name: 'Sementes de Sésamo'},
+          {id: 'bolachas', name: 'Bolachas'},
+          {id: 'tostas', name: 'Tostas'}
+        ];
+
+        snacksList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥦 Saladas e Legumes -->
+  <div class="category-card">
+    <div class="category-title">🥦 Saladas e Legumes</div>
+    <ul class="item-list">
+      <script>
+        const legumesList = [
+          {id: 'salada-gourmet', name: 'Salada Lavada Gourmet'},
+          {id: 'cenoura-ralada', name: 'Salada Cenoura Ralada Lavada'},
+          {id: 'tomate', name: 'Tomate'},
+          {id: 'batata', name: 'Batata'},
+          {id: 'cebola', name: 'Cebola'},
+          {id: 'alhos', name: 'Alhos'},
+          {id: 'limao', name: 'Limão'},
+          {id: 'lima', name: 'Lima'}
+        ];
+
+        legumesList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥩 Talho e Peixaria -->
+  <div class="category-card">
+    <div class="category-title">🥩 Talho e Peixaria</div>
+    <ul class="item-list">
+      <script>
+        const talhoList = [
+          {id: 'filete-tilapia', name: 'Filete de Tilápia', unit: 'Gramas'},
+          {id: 'bacalhau', name: 'Bacalhau', unit: 'Gramas'},
+          {id: 'frango-inteiro', name: 'Frango Inteiro', unit: 'Unid.'},
+          {id: 'coxas-frango', name: 'Coxas de Frango', unit: 'Pacote'},
+          {id: 'bife-vaca', name: 'Bife de Vaca', unit: 'Gramas'},
+          {id: 'bife-peru', name: 'Bife de Peru', unit: 'Gramas'},
+          {id: 'bife-frango', name: 'Bife de Frango', unit: 'Gramas'},
+          {id: 'costuletas-porco', name: 'Costuletas de Porco', unit: 'Gramas'},
+          {id: 'carne-picada', name: 'Carne Picada', unit: 'Gramas'},
+          {id: 'fiambre', name: 'Fiambre', unit: 'Gramas'},
+          {id: 'alheira', name: 'Alheira', unit: 'Unid.'},
+          {id: 'morcela', name: 'Morcela', unit: 'Unid.'}
+        ];
+
+        talhoList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">${item.unit}</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥛 Laticínios e Frescos -->
+  <div class="category-card">
+    <div class="category-title">🥛 Laticínios e Frescos</div>
+    <ul class="item-list">
+      <script>
+        const laticiniosList = [
+          {id: 'leite', name: 'Leite', type: 'litros'},
+          {id: 'leite-sem-lactose', name: 'Leite Sem Lactose', type: 'litros'},
+          {id: 'queijo', name: 'Queijo', type: 'unidades'},
+          {id: 'queijo-fatiado', name: 'Queijo Fatiado', type: 'unidades'},
+          {id: 'queijo-ralado', name: 'Queijo Ralado', type: 'unidades'},
+          {id: 'manteiga', name: 'Manteiga', type: 'unidades'},
+          {id: 'ovos', name: 'Ovos', type: 'unidades'},
+          {id: 'iogurte', name: 'Iogurte', type: 'unidades'},
+          {id: 'iogurte-liquido', name: 'Iogurte Líquido', type: 'unidades'},
+          {id: 'natas-culinaria', name: 'Natas de Culinária', type: 'unidades'},
+          {id: 'natas-bater', name: 'Natas de Bater', type: 'unidades'}
+        ];
+
+        laticiniosList.forEach(item => {
+          let step = 1;
+          let defaultVal = 1;
+          let unitName = item.type === 'litros' ? 'Litro' : 'Unid.';
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="${step}">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -${step}, ${defaultVal})">-</button>
+                  <span class="qty-value" id="qty-${item.id}">${defaultVal}</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', ${step}, ${defaultVal})">+</button>
+                </div>
+                <span class="qty-unit">${unitName}</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥖 Pastelaria e Padaria -->
+  <div class="category-card">
+    <div class="category-title">🥖 Pastelaria e Padaria</div>
+    <ul class="item-list">
+      <script>
+        const padariaList = [
+          {id: 'bola-berlim-com-creme', name: 'Bola de Berlim com Creme'},
+          {id: 'bola-berlim-sem-creme', name: 'Bola de Berlim sem Creme'},
+          {id: 'natas-pastelaria', name: 'Natas de Pastelaria'},
+          {id: 'pao-bola', name: 'Pão Bola'},
+          {id: 'pao-fatiado-sem-codea', name: 'Pão Fatiado sem Côdea'}
+        ];
+
+        padariaList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🥤 Bebidas -->
+  <div class="category-card">
+    <div class="category-title">🥤 Bebidas</div>
+    <ul class="item-list">
+      <script>
+        const bebidasList = [
+          {id: 'agua-15l', name: 'Água 1,5L'},
+          {id: 'garrafao-agua-5l', name: 'Garrafão de Água de 5 Litros'},
+          {id: 'agua-com-gas', name: 'Água com Gás'},
+          {id: 'lima-limao-com-gas', name: 'Lima Limão com Gás'},
+          {id: 'sumo', name: 'Sumo'},
+          {id: 'cha', name: 'Chá'},
+          {id: 'gasosa', name: 'Gasosa'},
+          {id: 'cerveja', name: 'Cerveja'}
+        ];
+
+        bebidasList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🧹 Limpeza e Casa -->
+  <div class="category-card">
+    <div class="category-title">🧹 Limpeza e Casa</div>
+    <ul class="item-list">
+      <script>
+        const limpezaList = [
+          {id: 'detergente-roupa', name: 'Detergente de Roupa'},
+          {id: 'amaciador-roupa', name: 'Amaciador de Roupa'},
+          {id: 'detergente-loica-manual', name: 'Detergente Loiça Manual'},
+          {id: 'detergente-loica-maquina', name: 'Detergente Loiça Máquina'},
+          {id: 'rolo-cozinha', name: 'Rolo de Cozinha'},
+          {id: 'guardanapos', name: 'Guardanapos'},
+          {id: 'sacos-lixo', name: 'Sacos de Lixo'},
+          {id: 'lixivia', name: 'Lixívia'},
+          {id: 'desengordurante-spray', name: 'Desengordurante Spray'}
+        ];
+
+        limpezaList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🪒 Higiene Pessoal -->
+  <div class="category-card">
+    <div class="category-title">🪒 Higiene Pessoal</div>
+    <ul class="item-list">
+      <script>
+        const higieneList = [
+          {id: 'champu', name: 'Champô'},
+          {id: 'gel-banho', name: 'Gel de Banho'},
+          {id: 'pasta-dentes', name: 'Pasta de Dentes'},
+          {id: 'papel-higienico', name: 'Papel Higiénico'}
+        ];
+
+        higieneList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <!-- 🍎 Frutas -->
+  <div class="category-card">
+    <div class="category-title">🍎 Frutas</div>
+    <ul class="item-list">
+      <script>
+        const frutasList = [
+          {id: 'fruta-epoca', name: 'Fruta da Época'},
+          {id: 'maca', name: 'Maçã'},
+          {id: 'bananas', name: 'Bananas'},
+          {id: 'laranjas', name: 'Laranjas'},
+          {id: 'peras', name: 'Pêras'},
+          {id: 'kiwi', name: 'Kiwi'},
+          {id: 'pessego', name: 'Pêssego'},
+          {id: 'figos', name: 'Figos'},
+          {id: 'uvas', name: 'Uvas'},
+          {id: 'melancia', name: 'Melancia'}
+        ];
+
+        frutasList.forEach(item => {
+          document.write(`
+            <li class="item" data-id="${item.id}" data-step="1">
+              <input type="checkbox" class="include-check">
+              <label class="item-label">
+                <input type="checkbox" class="bought-check">
+                <span class="item-name">${item.name}</span>
+              </label>
+              <div class="qty-container">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', -1, 1)">-</button>
+                  <span class="qty-value" id="qty-${item.id}">1</span>
+                  <button type="button" class="qty-btn" onclick="adjustQty('${item.id}', 1, 1)">+</button>
+                </div>
+                <span class="qty-unit">Unid.</span>
+              </div>
+            </li>
+          `);
+        });
+      </script>
+    </ul>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://lista-compras-sync-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const dbRef = db.ref('compras_vitor');
+
+    let currentMode = 'plan';
+
+    function setMode(mode) {
+      currentMode = mode;
+      const body = document.body;
+      const btnPlan = document.getElementById('btn-plan');
+      const btnShop = document.getElementById('btn-shop');
+      const subTitle = document.getElementById('sub-title');
+
+      if (mode === 'shop') {
+        body.classList.add('shopping-mode');
+        btnShop.classList.add('active');
+        btnPlan.classList.remove('active');
+        subTitle.textContent = 'Marque os artigos à medida que os coloca no carrinho';
+      } else {
+        body.classList.remove('shopping-mode');
+        btnPlan.classList.add('active');
+        btnShop.classList.remove('active');
+        subTitle.textContent = 'Selecione o que precisa de comprar';
+      }
+
+      updateCategoryCardsVisibility();
+    }
+
+    function updateCategoryCardsVisibility() {
+      const cards = document.querySelectorAll('.category-card');
+      cards.forEach(card => {
+        if (currentMode === 'shop') {
+          const hasNeeded = card.querySelectorAll('.item.needed').length > 0;
+          if (hasNeeded) {
+            card.classList.remove('hidden-card');
+          } else {
+            card.classList.add('hidden-card');
+          }
+        } else {
+          card.classList.remove('hidden-card');
+        }
+      });
+    }
+
+    function resetAllData() {
+      if (confirm("Tens a certeza de que pretendes repor todas as quantidades e limpar o estado da lista?")) {
+        dbRef.remove().then(() => {
+          location.reload();
+        });
+      }
+    }
+
+    function adjustQty(id, change, minLimit = 1) {
+      const qtySpan = document.getElementById('qty-' + id);
+      if (!qtySpan) return;
+      
+      let currentQty = parseInt(qtySpan.textContent) || minLimit;
+      let newQty = currentQty + change;
+      
+      if (newQty < minLimit) newQty = minLimit;
+      
+      qtySpan.textContent = newQty;
+
+      const itemEl = document.querySelector(`[data-id="${id}"]`);
+      if (itemEl) {
+        const includeCheck = itemEl.querySelector('.include-check');
+        const boughtCheck = itemEl.querySelector('.bought-check');
+        
+        // Se ajustar a quantidade, marca automaticamente como selecionado
+        if (!includeCheck.checked) {
+          includeCheck.checked = true;
+          itemEl.classList.add('needed');
+        }
+
+        saveState(id, includeCheck.checked, boughtCheck.checked, newQty);
+      }
+    }
+
+    function checkCompletion() {
+      const neededItems = document.querySelectorAll('.item.needed');
+      if (neededItems.length === 0) return;
+
+      const boughtItems = document.querySelectorAll('.item.needed.bought');
+      if (neededItems.length === boughtItems.length) {
+        setTimeout(() => {
+          if (confirm("Parabéns! A sua lista de compras está concluída. Deseja limpar a lista agora?")) {
+            dbRef.remove().then(() => {
+              location.reload();
+            });
+          }
+        }, 300);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const items = document.querySelectorAll('.item');
+
+      dbRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+
+        items.forEach(item => {
+          const itemId = item.getAttribute('data-id');
+          const stepAttr = parseInt(item.getAttribute('data-step'));
+          const minLimit = isNaN(stepAttr) ? 1 : stepAttr;
+          const includeCheck = item.querySelector('.include-check');
+          const boughtCheck = item.querySelector('.bought-check');
+          const qtySpan = document.getElementById('qty-' + itemId);
+
+          const savedState = data[itemId];
+
+          if (savedState) {
+            includeCheck.checked = !!savedState.needed;
+            if (savedState.needed) {
+              item.classList.add('needed');
+            } else {
+              item.classList.remove('needed');
+            }
+
+            boughtCheck.checked = !!savedState.bought;
+            if (savedState.bought) {
+              item.classList.add('bought');
+            } else {
+              item.classList.remove('bought');
+            }
+
+            if (savedState.qty !== undefined && qtySpan) {
+              qtySpan.textContent = savedState.qty;
+            }
+          } else {
+            includeCheck.checked = false;
+            boughtCheck.checked = false;
+            item.classList.remove('needed', 'bought');
+            if (qtySpan) qtySpan.textContent = minLimit;
+          }
+        });
+
+        updateCategoryCardsVisibility();
+      });
+
+      items.forEach(item => {
+        const itemId = item.getAttribute('data-id');
+        const stepAttr = parseInt(item.getAttribute('data-step'));
+        const minLimit = isNaN(stepAttr) ? 1 : stepAttr;
+        const includeCheck = item.querySelector('.include-check');
+        const boughtCheck = item.querySelector('.bought-check');
+        const qtySpan = document.getElementById('qty-' + itemId);
+
+        includeCheck.addEventListener('change', () => {
+          const currentQty = qtySpan ? parseInt(qtySpan.textContent) : minLimit;
+          if (includeCheck.checked) {
+            item.classList.add('needed');
+          } else {
+            item.classList.remove('needed');
+          }
+          saveState(itemId, includeCheck.checked, boughtCheck.checked, currentQty);
+          updateCategoryCardsVisibility();
+        });
+
+        boughtCheck.addEventListener('change', () => {
+          const currentQty = qtySpan ? parseInt(qtySpan.textContent) : minLimit;
+          if (boughtCheck.checked) {
+            item.classList.add('bought');
+          } else {
+            item.classList.remove('bought');
+          }
+          saveState(itemId, includeCheck.checked, boughtCheck.checked, currentQty);
+          checkCompletion();
+        });
+      });
+    });
+
+    function saveState(id, needed, bought, qty) {
+      dbRef.child(id).set({ needed, bought, qty });
+    }
+  </script>
+</body>
+</html>
