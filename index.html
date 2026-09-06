@@ -56,7 +56,7 @@
 
     body.shopping-mode .bought-check { display: inline-block; }
     .item.bought { background-color: var(--item-checked-bg) !important; border-color: var(--item-checked-bg) !important; }
-    .item-label { display: flex; align-items: center; cursor: pointer; flex-grow: 1; }
+    .item-label { display: flex; align-items: center; cursor: pointer; flex-grow: 1; user-select: none; }
     .item-name { font-weight: 500; transition: color 0.2s; }
     .item.bought .item-name { text-decoration: line-through; color: var(--item-checked-text); }
 
@@ -189,17 +189,18 @@
       }
     ];
 
-    // Construção Dinâmica
+    // Construção Dinâmica do DOM
     const container = document.getElementById('app-container');
+    let fullHTML = '';
     categories.forEach(cat => {
-      let html = `<div class="category-card"><div class="category-title">${cat.title}</div><ul class="item-list">`;
+      fullHTML += `<div class="category-card"><div class="category-title">${cat.title}</div><ul class="item-list">`;
       cat.items.forEach(item => {
         const unit = item.unit || 'Unid.';
-        html += `
+        fullHTML += `
           <li class="item" data-id="${item.id}">
-            <input type="checkbox" class="include-check">
-            <label class="item-label">
-              <input type="checkbox" class="bought-check">
+            <input type="checkbox" class="include-check" id="inc-${item.id}">
+            <label class="item-label" for="inc-${item.id}">
+              <input type="checkbox" class="bought-check" id="bought-${item.id}">
               <span class="item-name">${item.name}</span>
             </label>
             <div class="qty-container">
@@ -212,9 +213,9 @@
             </div>
           </li>`;
       });
-      html += `</ul></div>`;
-      container.innerHTML += html;
+      fullHTML += `</ul></div>`;
     });
+    container.innerHTML = fullHTML;
 
     // Configuração do Firebase
     const firebaseConfig = {
@@ -272,6 +273,7 @@
         itemEl.classList.add('needed');
         
         saveStateDebounced(id, true, boughtCheck.checked, newQty);
+        updateCategoryCardsVisibility();
       }
     }
 
@@ -329,7 +331,7 @@
       }).catch(err => console.error("Erro ao guardar no Firebase:", err));
     }
 
-    // Escuta em tempo real
+    // Escuta em tempo real do Firebase
     dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       
@@ -367,8 +369,8 @@
       updateCategoryCardsVisibility();
     });
 
-    // Eventos dos checkboxes
-    document.addEventListener('DOMContentLoaded', () => {
+    // Registar Listeners de forma segura após renderização no DOM
+    function attachEventListeners() {
       document.querySelectorAll('.item').forEach(item => {
         const id = item.getAttribute('data-id');
         const includeCheck = item.querySelector('.include-check');
@@ -389,7 +391,10 @@
           checkCompletion();
         });
       });
-    });
+    }
+
+    // Executa a atribuição de eventos assim que a estrutura esteja montada
+    attachEventListeners();
   </script>
 </body>
 </html>
