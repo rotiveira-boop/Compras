@@ -4,19 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- IMPEDE O NAVEGADOR DE GUARDAR CACHE ANTIGA -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
   <title>Lista de Compras Inteligente</title>
-  
-  <link rel="icon" type="image/png" href="Favicon.png">
-  <link rel="apple-touch-icon" href="Favicon.png">
 
   <!-- SDKs do Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js?v=3"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <style>
     :root {
@@ -189,7 +185,7 @@
       }
     ];
 
-    // Construção Dinâmica do DOM
+    // Render do HTML
     const container = document.getElementById('app-container');
     let fullHTML = '';
     categories.forEach(cat => {
@@ -217,7 +213,7 @@
     });
     container.innerHTML = fullHTML;
 
-    // Configuração do Firebase
+    // CONFIGURAÇÃO DO TEU PROJETO FIREBASE
     const firebaseConfig = {
       databaseURL: "https://lista-compras-sync-default-rtdb.europe-west1.firebasedatabase.app/"
     };
@@ -281,7 +277,7 @@
       if (confirm("Tens a certeza de que pretendes repor todas as quantidades e limpar a lista?")) {
         dbRef.remove().then(() => {
           clearLocalUI();
-        }).catch(err => console.error("Erro ao limpar dados:", err));
+        }).catch(err => alert("Erro ao limpar dados no Firebase: " + err.message));
       }
     }
 
@@ -367,34 +363,31 @@
       });
       
       updateCategoryCardsVisibility();
+    }, (error) => {
+      alert("Erro de permissões ou ligação ao Firebase: " + error.message);
     });
 
-    // Registar Listeners de forma segura após renderização no DOM
-    function attachEventListeners() {
-      document.querySelectorAll('.item').forEach(item => {
-        const id = item.getAttribute('data-id');
-        const includeCheck = item.querySelector('.include-check');
-        const boughtCheck = item.querySelector('.bought-check');
-        const qtySpan = document.getElementById('qty-' + id);
+    // Registar Listeners dos checkboxes
+    document.querySelectorAll('.item').forEach(item => {
+      const id = item.getAttribute('data-id');
+      const includeCheck = item.querySelector('.include-check');
+      const boughtCheck = item.querySelector('.bought-check');
+      const qtySpan = document.getElementById('qty-' + id);
 
-        includeCheck.addEventListener('change', () => {
-          const qty = parseInt(qtySpan.textContent) || 1;
-          item.classList.toggle('needed', includeCheck.checked);
-          saveState(id, includeCheck.checked, boughtCheck.checked, qty);
-          updateCategoryCardsVisibility();
-        });
-
-        boughtCheck.addEventListener('change', () => {
-          const qty = parseInt(qtySpan.textContent) || 1;
-          item.classList.toggle('bought', boughtCheck.checked);
-          saveState(id, includeCheck.checked, boughtCheck.checked, qty);
-          checkCompletion();
-        });
+      includeCheck.addEventListener('change', () => {
+        const qty = parseInt(qtySpan.textContent) || 1;
+        item.classList.toggle('needed', includeCheck.checked);
+        saveState(id, includeCheck.checked, boughtCheck.checked, qty);
+        updateCategoryCardsVisibility();
       });
-    }
 
-    // Executa a atribuição de eventos assim que a estrutura esteja montada
-    attachEventListeners();
+      boughtCheck.addEventListener('change', () => {
+        const qty = parseInt(qtySpan.textContent) || 1;
+        item.classList.toggle('bought', boughtCheck.checked);
+        saveState(id, includeCheck.checked, boughtCheck.checked, qty);
+        checkCompletion();
+      });
+    });
   </script>
 </body>
 </html>
