@@ -189,7 +189,6 @@
       }
     ];
 
-    // Construção Dinâmica
     const container = document.getElementById('app-container');
     categories.forEach(cat => {
       let html = `<div class="category-card"><div class="category-title">${cat.title}</div><ul class="item-list">`;
@@ -216,7 +215,7 @@
       container.innerHTML += html;
     });
 
-    // Configuração do Firebase
+    // Configuração Firebase
     const firebaseConfig = {
       databaseURL: "https://lista-compras-sync-default-rtdb.europe-west1.firebasedatabase.app/"
     };
@@ -279,7 +278,7 @@
       if (confirm("Tens a certeza de que pretendes repor todas as quantidades e limpar a lista?")) {
         dbRef.remove().then(() => {
           clearLocalUI();
-        }).catch(err => console.error("Erro ao limpar dados:", err));
+        }).catch(err => alert("Erro ao limpar dados: " + err.message));
       }
     }
 
@@ -318,7 +317,7 @@
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
         saveState(id, needed, bought, qty);
-      }, 150);
+      }, 100);
     }
 
     function saveState(id, needed, bought, qty) {
@@ -326,10 +325,10 @@
         needed: Boolean(needed), 
         bought: Boolean(bought), 
         qty: Number(qty) || 1 
-      }).catch(err => console.error("Erro ao guardar no Firebase:", err));
+      }).catch(err => alert("Erro ao guardar alterações: " + err.message));
     }
 
-    // Escuta em tempo real
+    // Escuta remota em tempo real
     dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       
@@ -365,9 +364,10 @@
       });
       
       updateCategoryCardsVisibility();
+    }, (error) => {
+      alert("Erro na sincronização: " + error.message);
     });
 
-    // Eventos dos checkboxes
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.item').forEach(item => {
         const id = item.getAttribute('data-id');
