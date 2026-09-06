@@ -1,3 +1,8 @@
+Aqui tens o código HTML completo e corrigido para substituires na totalidade.
+
+Já foi ajustado para o endereço exato indicado na tua consola ([https://lista-compras-sync-default-rtdb.firebaseio.com/](https://lista-compras-sync-default-rtdb.firebaseio.com/)).
+
+HTML
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -213,9 +218,9 @@
     });
     container.innerHTML = fullHTML;
 
-    // CONFIGURAÇÃO DO TEU PROJETO FIREBASE
+    // CONFIGURAÇÃO DO FIREBASE (URL CORRIGIDO SEGUNDO A CONSOLA)
     const firebaseConfig = {
-      databaseURL: "https://lista-compras-sync-default-rtdb.europe-west1.firebasedatabase.app/"
+      databaseURL: "https://lista-compras-sync-default-rtdb.firebaseio.com/"
     };
     
     if (!firebase.apps.length) {
